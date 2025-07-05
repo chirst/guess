@@ -2,10 +2,15 @@
 .align 2
 .data
     message: .asciz "Guess a number between 1 and 10.\n"
+    message_len = . - message
     invalid_message: .asciz "Invalid input.\n"
+    invalid_message_len = . - invalid_message
     less_message: .asciz "You guessed too high.\n"
+    less_message_len = . - less_message
     more_message: .asciz "You guessed too low.\n"
+    more_message_len = . - more_message
     success_message: .asciz "You guessed correctly.\n"
+    success_message_len = . - success_message
     generated_number: .int 0
     input_buf: .space 1024
 
@@ -81,7 +86,7 @@ _write_message:
     mov x0, #1                      // Set descriptor to 1 for stdout
     adrp x1, message@PAGE           // Load page address into register 1
     add x1, x1, message@PAGEOFF     // Add offset to address
-    mov x2, #33                     // Set length of message
+    mov x2, message_len             // Set length of message
     mov x16, #4                     // Load sys_write
     svc #0x80                       // Execute system call
     ret                             // Return to call site
@@ -138,7 +143,7 @@ _invalid_input:
     mov x0, #1                          // Set descriptor to 1 for stdout
     adrp x1, invalid_message@PAGE       // Load page address into register 1
     add x1, x1, invalid_message@PAGEOFF // Add offset to address
-    mov x2, #15                         // Set length of message
+    mov x2, invalid_message_len         // Set length of message
     mov x16, #4                         // Load sys_write
     svc #0x80                           // Execute system call
     b _run_guess
@@ -159,7 +164,7 @@ _print_less:
     mov x0, #1                          // Set descriptor to 1 for stdout
     adrp x1, less_message@PAGE          // Load page address into register 1
     add x1, x1, less_message@PAGEOFF    // Add offset to address
-    mov x2, #22                         // Set length of message
+    mov x2, less_message_len            // Set length of message
     mov x16, #4                         // Load sys_write
     svc #0x80                           // Execute system call
     b _run_guess
@@ -169,7 +174,7 @@ _print_more:
     mov x0, #1                          // Set descriptor to 1 for stdout
     adrp x1, more_message@PAGE          // Load page address into register 1
     add x1, x1, more_message@PAGEOFF    // Add offset to address
-    mov x2, #21                         // Set length of message
+    mov x2, more_message_len            // Set length of message
     mov x16, #4                         // Load sys_write
     svc #0x80                           // Execute system call
     b _run_guess
@@ -179,12 +184,12 @@ _print_success:
     mov x0, #1                          // Set descriptor to 1 for stdout
     adrp x1, success_message@PAGE       // Load page address into register 1
     add x1, x1, success_message@PAGEOFF // Add offset to address
-    mov x2, #23                         // Set length of message
+    mov x2, success_message_len         // Set length of message
     mov x16, #4                         // Load sys_write
     svc #0x80                           // Execute system call
 
 // Exit program successfully
 _exit:
-    mov x0, #0                          // Set exit code 0
+    mov x0, #0                          // Set exit code success
     mov x16, #1                         // Load sys_exit
     svc #0x80                           // Execute system call
