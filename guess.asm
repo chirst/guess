@@ -1,18 +1,47 @@
 .global _main
 .align 2
 .data
-    message: .asciz "Guess a number between 1 and 10.\n"
-    message_len = . - message
-    invalid_message: .asciz "Invalid input.\n"
-    invalid_message_len = . - invalid_message
-    less_message: .asciz "You guessed too high.\n"
-    less_message_len = . - less_message
-    more_message: .asciz "You guessed too low.\n"
-    more_message_len = . - more_message
-    success_message: .asciz "You guessed correctly.\n"
-    success_message_len = . - success_message
+    prompt: .asciz "Guess a number between 1 and 10.\n"
+    prompt_len = . - prompt
+    invalid: .asciz "Invalid input.\n"
+    invalid_len = . - invalid
+    less: .asciz "You guessed too high.\n"
+    less_len = . - less
+    more: .asciz "You guessed too low.\n"
+    more_len = . - more
+    success: .asciz "You guessed correctly.\n"
+    success_len = . - success
     generated_number: .int 0
     input_buf: .space 1024
+    input_buf_len = . - input_buf
+
+// print writes the given message with the given length to stdout.
+.macro print message, message_length
+    mov x0, #1                      // Set descriptor to 1 for stdout
+    adrp x1, \message@PAGE          // Load page address into register 1
+    add x1, x1, \message@PAGEOFF    // Add offset to address
+    mov x2, \message_length         // Set length of message
+    mov x16, #4                     // Load sys_write
+    svc #0x80                       // Execute system call
+.endm
+
+// read writes to the given buffer with the given length. The buffer will then 
+// have to be loaded later to access the contents.
+.macro read buffer, buffer_len
+    mov x0, #0                      // Set descriptor to 0 for stdin
+    adrp x1, \buffer@PAGE           // Load buffer page
+    add x1, x1, \buffer@PAGEOFF     // Get offset for buffer
+    mov x2, \buffer_len             // Set buffer length
+    mov x16, #3                     // Load sys_read
+    svc #0x80                       // Execute system call
+.endm
+
+// exit sets the exit code. If no code is given the status is 0 (success).
+.macro exit exit_code=0
+    mov x0, \exit_code              // Set exit code
+    mov x16, #1                     // Load sys_exit
+    svc #0x80                       // Execute system call
+.endm
 
 .text
 _main:
@@ -75,31 +104,11 @@ _generate_number:
 
 // Runs through guess sequence. Used to loop until a guess is correct.
 _run_guess:
-    bl _write_message
-    bl _read_guess
+    print prompt, prompt_len
+    read input_buf, input_buf_len
     bl _ascii_to_int
     bl _with_input
     ret
-
-// Write message
-_write_message:
-    mov x0, #1                      // Set descriptor to 1 for stdout
-    adrp x1, message@PAGE           // Load page address into register 1
-    add x1, x1, message@PAGEOFF     // Add offset to address
-    mov x2, message_len             // Set length of message
-    mov x16, #4                     // Load sys_write
-    svc #0x80                       // Execute system call
-    ret                             // Return to call site
-
-// Read user guess
-_read_guess:
-    mov x0, #0                      // Set descriptor to 0 for stdin
-    adrp x1, input_buf@PAGE         // Load buffer page
-    add x1, x1, input_buf@PAGEOFF   // Get offset for buffer
-    mov x2, #1024                   // Set buffer length
-    mov x16, #3                     // Load sys_read
-    svc #0x80                       // Execute system call
-    ret                             // Return to call site
 
 // Convert ascii buffer to integer
 _ascii_to_int:
@@ -140,12 +149,7 @@ _ascii_to_int_return:
 
 // Print invalid input message and re-prompt
 _invalid_input:
-    mov x0, #1                          // Set descriptor to 1 for stdout
-    adrp x1, invalid_message@PAGE       // Load page address into register 1
-    add x1, x1, invalid_message@PAGEOFF // Add offset to address
-    mov x2, invalid_message_len         // Set length of message
-    mov x16, #4                         // Load sys_write
-    svc #0x80                           // Execute system call
+    print invalid, invalid_len
     b _run_guess
 
 // have input as int at x8
@@ -156,40 +160,19 @@ _with_input:
     cmp x9, x8                            // Compare generated and input
     b.lt _print_less                      // Branch less
     b.gt _print_more                      // Branch more 
-    b _print_success                      // Branch success
+    print success, success_len
     b _exit
 
-// Print less message
+// Print less message and re-prompt
 _print_less:
-    mov x0, #1                          // Set descriptor to 1 for stdout
-    adrp x1, less_message@PAGE          // Load page address into register 1
-    add x1, x1, less_message@PAGEOFF    // Add offset to address
-    mov x2, less_message_len            // Set length of message
-    mov x16, #4                         // Load sys_write
-    svc #0x80                           // Execute system call
+    print less, less_len
     b _run_guess
 
-// Print more message
+// Print more message and re-prompt
 _print_more:
-    mov x0, #1                          // Set descriptor to 1 for stdout
-    adrp x1, more_message@PAGE          // Load page address into register 1
-    add x1, x1, more_message@PAGEOFF    // Add offset to address
-    mov x2, more_message_len            // Set length of message
-    mov x16, #4                         // Load sys_write
-    svc #0x80                           // Execute system call
+    print more, more_len
     b _run_guess
-
-// Print success message
-_print_success:
-    mov x0, #1                          // Set descriptor to 1 for stdout
-    adrp x1, success_message@PAGE       // Load page address into register 1
-    add x1, x1, success_message@PAGEOFF // Add offset to address
-    mov x2, success_message_len         // Set length of message
-    mov x16, #4                         // Load sys_write
-    svc #0x80                           // Execute system call
 
 // Exit program successfully
 _exit:
-    mov x0, #0                          // Set exit code success
-    mov x16, #1                         // Load sys_exit
-    svc #0x80                           // Execute system call
+    exit
