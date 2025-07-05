@@ -69,6 +69,18 @@
     add sp, sp, #16                 // Deallocate stack space
 .endm
 
+// modulus left and right operands and store in out. i is an intermediary 
+// register.
+.macro mod out, left, right, i
+    // Mod is multiple steps for example
+    // a % b is:
+    // temp = a / b
+    // temp = temp * b
+    // result = a - temp
+    udiv \i, \left, \right          // i = left / right
+    msub \out, \i, \right, \left    // out = left - (i * right) sweet combo
+.endm
+
 .text
 _main:
     bl _generate_number
@@ -99,21 +111,11 @@ _generate_number:
     // perform X_n+1 = (a X_n + c) mod m
     mul x1, x1, x3                  // X_n+1 = (x1 + c) mod m
     add x1, x1, x2                  // X_n+1 = (x1) mod m
+    mod x1, x1, x0, x4              // X_n+1
 
-    // Mod is multiple steps for example
-    // a % b
-    // c = a / b
-    // d = c * b
-    // result = a - d
-    udiv x4, x1, x0                 // x4 = x1 / x0
-    mul x5, x4, x0                  // x5 = x4 * x0
-    sub x1, x1, x5                  // x1 = x1 - x5
-
-    // mod again by 10 to get number 0-9
-    mov x7, #10
-    udiv x4, x1, x7                 // x4 = x1 / x7
-    mul x5, x4, x7                  // x5 = x4 * x7
-    sub x1, x1, x5                  // x1 = x1 - x5
+    // mod again to get number 1-10
+    mov x5, #10                     // Load 10
+    mod x1, x1, x5, x4              // Mod gives 0-9
     add x1, x1, #1                  // Add 1 to get 1-10
 
     // Store in generated_number for later use
@@ -125,8 +127,6 @@ _run_guess:
     print prompt, prompt_len
     read input_buf, input_buf_len
     bl _ascii_to_int
-
-    // have input as int at x8
     load generated_number, w9       // w to load 32 bit int accurately
     cmp x9, x8                      // Compare generated and input
     b.lt _less                      // Branch less
@@ -134,7 +134,7 @@ _run_guess:
     b _success                      // Branch success
     ret
 
-// Convert ascii buffer to integer
+// Convert ascii buffer to integer and store in x8
 _ascii_to_int:
     adrp x1, input_buf@PAGE         // Load buffer page
     add x1, x1, input_buf@PAGEOFF   // Get offset for buffer
