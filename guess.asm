@@ -146,9 +146,9 @@ _ascii_to_int:
     sub x0, x0, #'0'                // Subtract to get integer value
     mov x8, x0                      // Setup x8 to hold final integer
     add x1, x1, #1                  // Move to next character in buffer
+    mov x4, #10                     // Will need 10 for multiplying later
     b _ascii_to_int_next            // Loop
 _ascii_to_int_next:
-    mov x4, #10                     // Will need 10 for multiplying later
     ldrb w0, [x1]                   // Load character from input buffer
     cmp x0, #0x0A                   // Compare with ASCII LF for end of input
     b.eq _ascii_to_int_break        // Branch for end of input
